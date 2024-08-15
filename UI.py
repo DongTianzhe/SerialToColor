@@ -474,7 +474,7 @@ class SettingDialog(QDialog):
 
         self.setLayout(self.totalLayout)
 
-    def changeLanguage(self, langCode):
+    def changeLanguage(self):
         self.currentLanguage = self.languageComboBox.currentData()
 
     def saveValues(self):

@@ -1,0 +1,18 @@
+start.svg
+from Fluent UI
+ic_fluent_triangle_right_32_regular.svg
+
+stop.svg
+from Fluent UI
+ic_fluent_circle_24_regular.svg
+
+setting.svg
+from Fluent UI
+ic_fluent_settings_28_regular.svg
+
+refresh.svg
+from Fluent UI
+ic_fluent_arrow_counterclockwise_24_regular.svg
+
+icon.png
+from black-forest-labs/FLUX.1-schnell
