@@ -1,7 +1,7 @@
 from PySide6.QtWidgets import (QMainWindow, QLabel, QWidget, QGridLayout,
                                QComboBox, QPushButton, QDialog, QLineEdit, QDialogButtonBox, QColorDialog, QToolBar,
                                QStatusBar, QTabWidget, QMessageBox)
-from PySide6.QtCore import QSize, QTimer, Qt
+from PySide6.QtCore import QSize, QTimer, Qt, QThread
 from PySide6.QtGui import QFont, QIcon, QIntValidator, QColor, QPainter, QAction
 from PySide6.QtCharts import QChart, QLineSeries, QChartView, QValueAxis
 
@@ -20,13 +20,17 @@ minDataNum = int(config.get('Data', 'minData'))
 timeInterval = int(config.get('Data', 'timeinterval'))
 timeIntervalChanged = False
 xAxisLength = int(config.get('Graph', 'xAxisLength'))
+xCount = 0
 language = config.get('General', 'language')
 firstRead = True
 startReading = False
+currentSerial = serial.Serial()
+serialReadingThreadRunning = False
 
 nameList = []
 portList = []
-data = [[255, 255, 255] for _ in range(numBlock)]
+colorData = [[255, 255, 255] for _ in range(numBlock)]
+totalData = [(maxDataNum + minDataNum) // 2 for _ in range(numBlock)]
 languageList = [['English', 'en'], ['简体中文', 'zh_CN']]
 startColor = list(map(int, config.get('Color', 'startColor').split()))
 endColor = list(map(int, config.get('Color', 'endColor').split()))
@@ -77,19 +81,15 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(self.tr('Show color'))
         self.resize(QSize(400, 450))
 
+        # Thread
+        self.serialReadingThread = SerialReadingThread(self)
+
         # Timer
         self.timer = QTimer()
         self.timer.setInterval(timeInterval)
 
         # Widgets
         self.labels = [ColorLabel(_) for _ in range(numBlock)]
-
-        # settingButton = QPushButton()
-        # settingButton.setMaximumSize(QSize(30, 30))
-        # settingButton.setIcon(QIcon('img/gear.png'))
-        # settingButton.clicked.connect(self.settingButtonClicked)
-
-        self.currentSerial = None
 
         self.errorMessage = QMessageBox()
 
@@ -103,11 +103,6 @@ class MainWindow(QMainWindow):
         self.startButtonAction.setStatusTip(self.tr('Start reading'))
         self.startButtonAction.triggered.connect(self.startButtonActionTriggered)
         self.toolbar.addAction(self.startButtonAction)
-
-        # self.stopButtonAction = QAction(QIcon('img/stop.svg'), 'Stop', self)
-        # self.stopButtonAction.setStatusTip('Stop reading')
-        # self.stopButtonAction.triggered.connect(self.stopButtonActionTriggered)
-        # self.toolbar.addAction(self.stopButtonAction)
 
         self.toolbar.addSeparator()
 
@@ -130,19 +125,13 @@ class MainWindow(QMainWindow):
         # Layouts
         self.labelLayout = QGridLayout()
         self.totalLayout = QGridLayout()
-        # informationLayout = QGridLayout()
-        #
-        # informationLayout.addWidget(self.serialChooser, 0, 0)
-        # informationLayout.addWidget(settingButton, 0, 1)
-        #
-        # totalLayout.addLayout(informationLayout, 0, 0)
 
         for _ in range(numBlock):
             self.labels[_].setText('255')
             self.labels[_].setFont(QFont("Arial", 10))
             self.labels[_].setAlignment(Qt.AlignmentFlag.AlignCenter)
             self.labels[_].setStyleSheet(
-                f"background-color: rgb({data[_][0]}, {data[_][1]}, {data[_][2]});")
+                f"background-color: rgb({colorData[_][0]}, {colorData[_][1]}, {colorData[_][2]});")
             self.labelLayout.addWidget(self.labels[_], _ // int(numBlock ** 0.5), _ % int(numBlock ** 0.5))
 
         self.totalLayout.addLayout(self.labelLayout, 0, 0)
@@ -180,66 +169,66 @@ class MainWindow(QMainWindow):
 
     def startButtonActionTriggered(self):
         global startReading, firstRead
-        if not startReading:
-            self.startRunning()
-        else:
+        try:
+            if not startReading:
+                self.startRunning()
+            else:
+                self.stopRunning()
+        except BaseException as e:
             self.stopRunning()
-
-    # def stopButtonActionTriggered(self):
-    #     global startReading, firstRead
-    #     startReading = False
-    #     self.startButtonAction.setEnabled(True)
-    #     if self.currentSerial:
-    #         if self.currentSerial.is_open:
-    #             self.currentSerial.close()
-    #             firstRead = True
+            self.refresh()
+            self.errorMessage.warning(self, self.tr('Error'), f'startButtonActionTriggered:\n{str(e)}')
 
     def refresh(self):
         self.serialChooser.currentIndexChanged.disconnect(self.serialIndexChanged)
         self.setNameList()
 
     def serialIndexChanged(self, index):
+        global currentSerial
         try:
-            if self.currentSerial:
-                self.currentSerial.close()
+            if currentSerial:
+                currentSerial.close()
                 print(f'{nameList[self.currentSerialIndex]} is closed.')
             self.currentSerialIndex = index
             if self.currentSerialIndex != -1:
-                self.currentSerial = serial.Serial(portList[self.currentSerialIndex], 115200)
+                currentSerial = serial.Serial(portList[self.currentSerialIndex], 115200)
                 print(f'{nameList[self.currentSerialIndex]} is opened.')
-                self.currentSerial.close()
+                currentSerial.close()
         except BaseException as e:
             self.stopRunning()
             self.refresh()
-            self.errorMessage.warning(self, self.tr('Error'), str(e))
+            self.errorMessage.warning(self, self.tr('Error'), f'serialIndexChanged:\n{str(e)}')
 
     def startRunning(self):
-        global startReading
+        global startReading, currentSerial
         startReading = True
         self.startButtonAction.setIcon(QIcon('img/stop.svg'))
         self.startButtonAction.setStatusTip(self.tr('Stop reading'))
         self.startButtonAction.setText(self.tr('Stop'))
-        if self.currentSerial:
-            if not self.currentSerial.is_open:
-                self.currentSerial.open()
+        if currentSerial is not None:
+            if not currentSerial.is_open:
+                currentSerial.open()
 
     def stopRunning(self):
-        global startReading, firstRead
+        global startReading, firstRead, currentSerial, serialReadingThreadRunning
         startReading = False
+        serialReadingThreadRunning = False
+        self.serialReadingThread.wait()
         self.startButtonAction.setIcon(QIcon('img/start.svg'))
         self.startButtonAction.setStatusTip(self.tr('Start reading'))
         self.startButtonAction.setText(self.tr('Start'))
-        if self.currentSerial:
-            if self.currentSerial.is_open:
-                self.currentSerial.close()
+        if currentSerial:
+            if currentSerial.is_open:
+                currentSerial.close()
                 firstRead = True
 
     def updateLabels(self):
-        global data
+        global colorData, totalData
         for _ in range(len(self.labels)):
             self.labels[_].deleteLater()
         self.labels = [ColorLabel(_) for _ in range(numBlock)]
-        data = [[255, 255, 255] for _ in range(numBlock)]
+        colorData = [[255, 255, 255] for _ in range(numBlock)]
+        totalData = [(maxDataNum + minDataNum) // 2 for _ in range(numBlock)]
         self.labelLayout = QGridLayout()
 
         for _ in range(numBlock):
@@ -247,11 +236,14 @@ class MainWindow(QMainWindow):
             self.labels[_].setFont(QFont("Arial", 10))
             self.labels[_].setAlignment(Qt.AlignmentFlag.AlignCenter)
             self.labels[_].setStyleSheet(
-                f"background-color: rgb({data[_][0]}, {data[_][1]}, {data[_][2]});")
+                f"background-color: rgb({colorData[_][0]}, {colorData[_][1]}, {colorData[_][2]});")
             self.labelLayout.addWidget(self.labels[_], _ // int(numBlock ** 0.5), _ % int(numBlock ** 0.5))
 
         self.totalLayout.removeItem(self.labelLayout)
         self.totalLayout.addLayout(self.labelLayout, 0, 0)
+
+    def showErrorMessage(self, message):
+        self.errorMessage.warning(self, self.tr('Error'), message)
 
     def changeColor(self):
         # if self.currentSerial:
@@ -266,37 +258,40 @@ class MainWindow(QMainWindow):
         #                 data[_] = getColor(currentNum)
         #                 self.labels[_].setStyleSheet(
         #                     f"background-color: rgb({data[_][0]}, {data[_][1]}, {data[_][2]});")
-        global firstRead, startReading
+        global firstRead, startReading, currentSerial, serialReadingThreadRunning
         if startReading:
             try:
-                if self.currentSerial:
-                    if self.currentSerial.is_open:
-                        while firstRead:
-                            currentData = self.currentSerial.readline()
-                            if currentData == b'----------------------------------------------------------\n':
-                                firstRead = False
-                        totalData = []
-                        for _ in range(int(numBlock ** 0.5) + 1):
-                            currentData = self.currentSerial.readline()
-                            while currentData == b'\n':
-                                currentData = self.currentSerial.readline()
-                            if _ < int(numBlock ** 0.5):
-                                currentArr = currentData.decode('utf-8').split()
-                                for i in currentArr:
-                                    totalData.append(float(i))
+                if currentSerial is not None:
+                    if currentSerial.is_open:
+                        if not serialReadingThreadRunning:
+                            self.serialReadingThread.start()
+                        # while firstRead:
+                        #     currentData = currentSerial.readline()
+                        #     if currentData == b'----------------------------------------------------------\n':
+                        #         firstRead = False
+                        # totalData = []
+                        # for _ in range(int(numBlock ** 0.5) + 1):
+                        #     currentData = currentSerial.readline()
+                        #     while currentData == b'\n':
+                        #         currentData = currentSerial.readline()
+                        #     if _ < int(numBlock ** 0.5):
+                        #         currentArr = currentData.decode('utf-8').split()
+                        #         for i in currentArr:
+                        #             totalData.append(float(i))
 
-                        for _ in range(numBlock):
-                            currentNum = totalData[_]
-                            self.labels[_].setText(str(currentNum))
-                            data[_] = getColor(currentNum)
-                            self.labels[_].setStyleSheet(
-                                f"background-color: rgb({data[_][0]}, {data[_][1]}, {data[_][2]});")
+                            for _ in range(numBlock):
+                                currentNum = totalData[_]
+                                self.labels[_].setText(str(currentNum))
+                                colorData[_] = getColor(currentNum)
+                                self.labels[_].setStyleSheet(
+                                    f"background-color: rgb({colorData[_][0]}, {colorData[_][1]}, {colorData[_][2]});")
             except BaseException as e:
                 self.stopRunning()
                 self.refresh()
-                self.errorMessage.warning(self, self.tr('Error'), str(e))
+                self.errorMessage.warning(self, self.tr('Error'), f'changeColor:\n{str(e)}')
 
     def closeEvent(self, event):
+        global currentSerial
         config.set('Data', 'maxData', str(maxDataNum))
         config.set('Data', 'minData', str(minDataNum))
         config.set('Data', 'timeinterval', str(timeInterval))
@@ -310,10 +305,44 @@ class MainWindow(QMainWindow):
         with open('config.ini', 'w') as f:
             config.write(f)
 
-        if self.currentSerial:
-            self.currentSerial.close()
+        self.serialReadingThread.wait()
+
+        if currentSerial:
+            currentSerial.close()
             print(f'{nameList[self.currentSerialIndex]} is closed.')
         event.accept()
+
+
+class SerialReadingThread(QThread):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+    def run(self):
+        global firstRead, startReading, currentSerial, totalData, serialReadingThreadRunning
+        try:
+            serialReadingThreadRunning = True
+            while firstRead:
+                currentData = currentSerial.readline()
+                if currentData == b'----------------------------------------------------------\n':
+                    firstRead = False
+            currentTotalData = []
+            for _ in range(int(numBlock ** 0.5) + 1):
+                currentData = currentSerial.readline()
+                while currentData == b'\n' or currentData == b'':
+                    currentData = currentSerial.readline()
+                if _ < int(numBlock ** 0.5):
+                    currentArr = currentData.decode('utf-8').split()
+                    for i in currentArr:
+                        currentTotalData.append(float(i))
+            totalData = currentTotalData
+            serialReadingThreadRunning = False
+        except BaseException as e:
+            self.parent().stopRunning()
+            # self.parent().refresh()
+            print(f'SerialReadingThread error:\n{str(e)}')
+
+
+
 
 
 class ColorLabel(QLabel):
@@ -483,12 +512,6 @@ class SettingDialog(QDialog):
         maxDataNum = int(self.maxNumLineEdit.text())
         minDataNum = int(self.minNumLineEdit.text())
         xAxisLength = int(self.setXAxisLengthLineEdit.text())
-        # startColor = [int(self.startColorLineEdit[0].text()), int(self.startColorLineEdit[1].text()),
-        #               int(self.startColorLineEdit[2].text())]
-        # endColor = [int(self.endColorLineEdit[0].text()), int(self.endColorLineEdit[1].text()),
-        #             int(self.endColorLineEdit[2].text())]
-        # intervalColor = [int(self.intervalColorLineEdit[0].text()), int(self.intervalColorLineEdit[1].text()),
-        #                  int(self.intervalColorLineEdit[2].text())]
         startColor = self.currentStartColor
         endColor = self.currentEndColor
         intervalColor = self.currentIntervalColor
@@ -536,7 +559,9 @@ class LineChart(QChart):
     def __init__(self, index):
         super().__init__()
 
-        self.count = 0
+        global xCount
+
+        xCount = 0
         self.totalData = []
         self.currentMinAxisX = 0
 
@@ -563,23 +588,24 @@ class LineChart(QChart):
         self.series.attachAxis(self.axisY)
 
     def dataUpdate(self, num):
-        global xAxisLength
+        global xAxisLength, xCount
         if len(self.totalData) > xAxisLength:
             self.totalData.pop(0)
             self.series.remove(0)
             self.currentMinAxisX += 1
             self.axisX.setMin(self.currentMinAxisX)
         self.totalData.append(float(num))
-        self.series.append(float(self.count), float(num))
+        self.series.append(float(xCount), float(num))
         minY = min(self.totalData)
         maxY = max(self.totalData)
         self.axisY.setMin(minY - 1)
         self.axisY.setMax(maxY + 1)
-        self.axisX.setMax(self.count)
-        self.count += 1
+        self.axisX.setMax(xCount)
+        xCount += 1
 
     def reset(self):
-        self.count = 0
+        global xCount
+        xCount = 0
         self.totalData.clear()
         self.series.clear()
         self.axisX.setMax(1)
