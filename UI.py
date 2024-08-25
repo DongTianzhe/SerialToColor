@@ -7,7 +7,10 @@ from PySide6.QtCharts import QChart, QLineSeries, QChartView, QValueAxis
 
 import serial.tools.list_ports
 import configparser
-import serial.tools.list_ports
+
+import os
+import xlwings as xw
+import datetime
 
 config = configparser.ConfigParser()
 config.read('config.ini')
@@ -25,6 +28,7 @@ language = config.get('General', 'language')
 firstRead = True
 startReading = False
 currentSerial = serial.Serial()
+currentSerial.close()
 serialReadingThreadRunning = False
 
 nameList = []
@@ -35,6 +39,12 @@ languageList = [['English', 'en'], ['简体中文', 'zh_CN']]
 startColor = list(map(int, config.get('Color', 'startColor').split()))
 endColor = list(map(int, config.get('Color', 'endColor').split()))
 intervalColor = list(map(int, config.get('Color', 'intervalColor').split()))
+
+
+
+totalDataList = []
+totalTimeList = []
+startTime = ''
 
 
 def getPortList():
@@ -83,6 +93,7 @@ class MainWindow(QMainWindow):
 
         # Thread
         self.serialReadingThread = SerialReadingThread(self)
+        self.excelWritingThread = ExcelWritingThread(self)
 
         # Timer
         self.timer = QTimer()
@@ -186,7 +197,7 @@ class MainWindow(QMainWindow):
     def serialIndexChanged(self, index):
         global currentSerial
         try:
-            if currentSerial:
+            if currentSerial.is_open:
                 currentSerial.close()
                 print(f'{nameList[self.currentSerialIndex]} is closed.')
             self.currentSerialIndex = index
@@ -200,8 +211,11 @@ class MainWindow(QMainWindow):
             self.errorMessage.warning(self, self.tr('Error'), f'serialIndexChanged:\n{str(e)}')
 
     def startRunning(self):
-        global startReading, currentSerial
+        global startReading, currentSerial, startTime, totalDataList, totalTimeList
         startReading = True
+        startTime = datetime.datetime.now().strftime('%Y-%m-%d %H.%M.%S')
+        totalDataList.clear()
+        totalTimeList.clear()
         self.startButtonAction.setIcon(QIcon('img/stop.svg'))
         self.startButtonAction.setStatusTip(self.tr('Stop reading'))
         self.startButtonAction.setText(self.tr('Stop'))
@@ -214,6 +228,7 @@ class MainWindow(QMainWindow):
         startReading = False
         serialReadingThreadRunning = False
         self.serialReadingThread.wait()
+        self.excelWritingThread.start()
         self.startButtonAction.setIcon(QIcon('img/start.svg'))
         self.startButtonAction.setStatusTip(self.tr('Start reading'))
         self.startButtonAction.setText(self.tr('Start'))
@@ -291,7 +306,13 @@ class MainWindow(QMainWindow):
                 self.errorMessage.warning(self, self.tr('Error'), f'changeColor:\n{str(e)}')
 
     def closeEvent(self, event):
-        global currentSerial
+        global currentSerial, startReading
+        if startReading:
+            self.stopRunning()
+
+        self.serialReadingThread.wait()
+        self.excelWritingThread.wait()
+
         config.set('Data', 'maxData', str(maxDataNum))
         config.set('Data', 'minData', str(minDataNum))
         config.set('Data', 'timeinterval', str(timeInterval))
@@ -305,8 +326,6 @@ class MainWindow(QMainWindow):
         with open('config.ini', 'w') as f:
             config.write(f)
 
-        self.serialReadingThread.wait()
-
         if currentSerial:
             currentSerial.close()
             print(f'{nameList[self.currentSerialIndex]} is closed.')
@@ -318,9 +337,11 @@ class SerialReadingThread(QThread):
         super().__init__(parent)
 
     def run(self):
-        global firstRead, startReading, currentSerial, totalData, serialReadingThreadRunning
+        global firstRead, startReading, currentSerial, totalData, serialReadingThreadRunning, totalDataList, \
+            totalTimeList
         try:
             serialReadingThreadRunning = True
+            currentTime = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
             while firstRead:
                 currentData = currentSerial.readline()
                 if currentData == b'----------------------------------------------------------\n':
@@ -335,6 +356,8 @@ class SerialReadingThread(QThread):
                     for i in currentArr:
                         currentTotalData.append(float(i))
             totalData = currentTotalData
+            totalDataList.append(currentTotalData)
+            totalTimeList.append(currentTime)
             serialReadingThreadRunning = False
         except BaseException as e:
             self.parent().stopRunning()
@@ -342,6 +365,31 @@ class SerialReadingThread(QThread):
             print(f'SerialReadingThread error:\n{str(e)}')
 
 
+class ExcelWritingThread(QThread):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+    def run(self):
+        if 'data' not in os.listdir():
+            os.mkdir('data')
+
+        if 'totalData.xlsx' not in os.listdir('data'):
+            with xw.App(visible=False) as app:
+                book = app.books.add()
+                book.save('data/totalData.xlsx')
+
+        with xw.App(visible=False) as app:
+            book = app.books.open('data/totalData.xlsx')
+            sheet = book.sheets.add()
+            sheet.name = startTime
+            sheet.range('a:a').api.NumberFormat = '@'
+            sheet.range('A1').value = 'time'
+            sheet.range('B1').value = [f'block {_}' for _ in range(numBlock)]
+            sheet.range('A2').options(transpose=True).value = totalTimeList
+            sheet.range('B2').options(expand='table').value = totalDataList
+            book.save()
+            book.close()
+        print('ExcelWritingThread finish')
 
 
 
@@ -562,13 +610,15 @@ class LineChart(QChart):
         global xCount
 
         xCount = 0
+        currentRow = str(index // int(numBlock ** 0.5))
+        currentColumn = str(index % int(numBlock ** 0.5))
         self.totalData = []
         self.currentMinAxisX = 0
 
         self.resize(QSize(600, 400))
         self.legend().hide()
         self.setTitle(self.tr(
-            f'Label row {str(index // int(numBlock ** 0.5), )} column {str(index % int(numBlock ** 0.5))}'))
+            f'Label row {currentRow} column {currentColumn}'))
 
         self.series = QLineSeries()
         self.addSeries(self.series)
@@ -598,8 +648,8 @@ class LineChart(QChart):
         self.series.append(float(xCount), float(num))
         minY = min(self.totalData)
         maxY = max(self.totalData)
-        self.axisY.setMin(minY - 1)
-        self.axisY.setMax(maxY + 1)
+        self.axisY.setMin(minY)
+        self.axisY.setMax(maxY)
         self.axisX.setMax(xCount)
         xCount += 1
 

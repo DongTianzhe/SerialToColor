@@ -4,12 +4,16 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="d21e7d55-f741-4de2-83bc-0cf64d24eb31" name="更改" comment="Initial commit">
+    <list default="true" id="d21e7d55-f741-4de2-83bc-0cf64d24eb31" name="更改" comment="Data will be stored to data/totalData.xlsx after stop reading.">
+      <change afterPath="$PROJECT_DIR$/dist/SerialToColor 2024-8-15.zip" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/dist/SerialToColor 2024-8-17.zip" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/dist/SerialToColor 2024-8-25.zip" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/UI.py" beforeDir="false" afterPath="$PROJECT_DIR$/UI.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/config.ini" beforeDir="false" afterPath="$PROJECT_DIR$/config.ini" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/dist/SeralToColor.zip" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/mainFile.py" beforeDir="false" afterPath="$PROJECT_DIR$/mainFile.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/dist/SerialToColor 20240815.zip" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/dist/SerialToColor 20240817.zip" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/language/zh_CN.qm" beforeDir="false" afterPath="$PROJECT_DIR$/language/zh_CN.qm" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -104,7 +108,7 @@
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
-        <option value="bundled-python-sdk-ce3d9afa04ac-ba05f1cad1b1-com.jetbrains.pycharm.community.sharedIndexes.bundled-PC-242.20224.347" />
+        <option value="bundled-python-sdk-abccbe9d933a-ba05f1cad1b1-com.jetbrains.pycharm.community.sharedIndexes.bundled-PC-242.20224.428" />
       </set>
     </attachedChunks>
   </component>
@@ -125,11 +129,21 @@
       <option name="project" value="LOCAL" />
       <updated>1723729817328</updated>
     </task>
-    <option name="localTasksCounter" value="2" />
+    <task id="LOCAL-00002" summary="Multithreading added">
+      <option name="closed" value="true" />
+      <created>1723904925259</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1723904925259</updated>
+    </task>
+    <option name="localTasksCounter" value="3" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="Initial commit" />
-    <option name="LAST_COMMIT_MESSAGE" value="Initial commit" />
+    <MESSAGE value="Multithreading added" />
+    <MESSAGE value="Data will be stored to data/totalData.xlsx after stop reading." />
+    <option name="LAST_COMMIT_MESSAGE" value="Data will be stored to data/totalData.xlsx after stop reading." />
   </component>
 </project>
