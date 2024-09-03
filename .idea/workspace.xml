@@ -13,7 +13,6 @@
       <change beforePath="$PROJECT_DIR$/config.ini" beforeDir="false" afterPath="$PROJECT_DIR$/config.ini" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/dist/SerialToColor 20240815.zip" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/dist/SerialToColor 20240817.zip" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/language/zh_CN.qm" beforeDir="false" afterPath="$PROJECT_DIR$/language/zh_CN.qm" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -108,7 +107,7 @@
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
-        <option value="bundled-python-sdk-abccbe9d933a-ba05f1cad1b1-com.jetbrains.pycharm.community.sharedIndexes.bundled-PC-242.20224.428" />
+        <option value="bundled-python-sdk-98f27166c754-ba05f1cad1b1-com.jetbrains.pycharm.community.sharedIndexes.bundled-PC-242.21829.153" />
       </set>
     </attachedChunks>
   </component>
@@ -137,7 +136,15 @@
       <option name="project" value="LOCAL" />
       <updated>1723904925259</updated>
     </task>
-    <option name="localTasksCounter" value="3" />
+    <task id="LOCAL-00003" summary="Data will be stored to data/totalData.xlsx after stop reading.">
+      <option name="closed" value="true" />
+      <created>1724558023515</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1724558023515</updated>
+    </task>
+    <option name="localTasksCounter" value="4" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">

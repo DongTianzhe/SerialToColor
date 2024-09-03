@@ -17,6 +17,16 @@ config.read('config.ini')
 
 # Global variable
 numBlock = int(config.get('Display', 'numBlock'))
+blockRow = int(config.get('Display', 'blockRow'))
+blockColumn = int(config.get('Display', 'blockColumn'))
+previousBlockRow = blockRow
+previousBlockColumn = blockColumn
+if blockRow == 1:
+    noInputSeparation = True
+else:
+    noInputSeparation = False
+separationBetweenRows = config.get('Data', 'separation_between_rows')
+separationBetweenNumbers = config.get('Data', 'separation_between_numbers')
 numBlockChanged = False
 maxDataNum = int(config.get('Data', 'maxData'))
 minDataNum = int(config.get('Data', 'minData'))
@@ -39,8 +49,6 @@ languageList = [['English', 'en'], ['简体中文', 'zh_CN']]
 startColor = list(map(int, config.get('Color', 'startColor').split()))
 endColor = list(map(int, config.get('Color', 'endColor').split()))
 intervalColor = list(map(int, config.get('Color', 'intervalColor').split()))
-
-
 
 totalDataList = []
 totalTimeList = []
@@ -102,6 +110,8 @@ class MainWindow(QMainWindow):
         # Widgets
         self.labels = [ColorLabel(_) for _ in range(numBlock)]
 
+        self.labelArray = [[ColorLabel(i * blockColumn + j) for i in range(blockColumn)] for j in range(blockRow)]
+
         self.errorMessage = QMessageBox()
 
         # Toolbar
@@ -137,13 +147,22 @@ class MainWindow(QMainWindow):
         self.labelLayout = QGridLayout()
         self.totalLayout = QGridLayout()
 
-        for _ in range(numBlock):
-            self.labels[_].setText('255')
-            self.labels[_].setFont(QFont("Arial", 10))
-            self.labels[_].setAlignment(Qt.AlignmentFlag.AlignCenter)
-            self.labels[_].setStyleSheet(
-                f"background-color: rgb({colorData[_][0]}, {colorData[_][1]}, {colorData[_][2]});")
-            self.labelLayout.addWidget(self.labels[_], _ // int(numBlock ** 0.5), _ % int(numBlock ** 0.5))
+        # for _ in range(numBlock):
+        #     self.labels[_].setText('255')
+        #     self.labels[_].setFont(QFont("Arial", 10))
+        #     self.labels[_].setAlignment(Qt.AlignmentFlag.AlignCenter)
+        #     self.labels[_].setStyleSheet(
+        #         f"background-color: rgb({colorData[_][0]}, {colorData[_][1]}, {colorData[_][2]});")
+        #     self.labelLayout.addWidget(self.labels[_], _ // int(numBlock ** 0.5), _ % int(numBlock ** 0.5))
+
+        for i in range(blockRow):
+            for j in range(blockColumn):
+                self.labelArray[i][j].setText('255')
+                self.labelArray[i][j].setFont(QFont("Arial", 10))
+                self.labelArray[i][j].setAlignment(Qt.AlignmentFlag.AlignCenter)
+                self.labelArray[i][j].setStyleSheet(
+                    f"background-color: rgb({colorData[i * blockColumn + j][0]}, {colorData[i * blockColumn + j][1]}, {colorData[i * blockColumn + j][2]});")
+                self.labelLayout.addWidget(self.labelArray[i][j], i, j)
 
         self.totalLayout.addLayout(self.labelLayout, 0, 0)
 
@@ -239,20 +258,36 @@ class MainWindow(QMainWindow):
 
     def updateLabels(self):
         global colorData, totalData
-        for _ in range(len(self.labels)):
-            self.labels[_].deleteLater()
-        self.labels = [ColorLabel(_) for _ in range(numBlock)]
+        # for _ in range(len(self.labels)):
+        #     self.labels[_].deleteLater()
+        # delete labels in self.labelArray
+        for i in range(previousBlockRow):
+            for j in range(previousBlockColumn):
+                self.labelArray[i][j].deleteLater()
+
+        # self.labels = [ColorLabel(_) for _ in range(numBlock)]
+
+        self.labelArray = [[ColorLabel(i * blockColumn + j) for j in range(blockColumn)] for i in range(blockRow)]
         colorData = [[255, 255, 255] for _ in range(numBlock)]
         totalData = [(maxDataNum + minDataNum) // 2 for _ in range(numBlock)]
         self.labelLayout = QGridLayout()
 
-        for _ in range(numBlock):
-            self.labels[_].setText('255')
-            self.labels[_].setFont(QFont("Arial", 10))
-            self.labels[_].setAlignment(Qt.AlignmentFlag.AlignCenter)
-            self.labels[_].setStyleSheet(
-                f"background-color: rgb({colorData[_][0]}, {colorData[_][1]}, {colorData[_][2]});")
-            self.labelLayout.addWidget(self.labels[_], _ // int(numBlock ** 0.5), _ % int(numBlock ** 0.5))
+        # for _ in range(numBlock):
+        #     self.labels[_].setText('255')
+        #     self.labels[_].setFont(QFont("Arial", 10))
+        #     self.labels[_].setAlignment(Qt.AlignmentFlag.AlignCenter)
+        #     self.labels[_].setStyleSheet(
+        #         f"background-color: rgb({colorData[_][0]}, {colorData[_][1]}, {colorData[_][2]});")
+        #     self.labelLayout.addWidget(self.labels[_], _ // int(numBlock ** 0.5), _ % int(numBlock ** 0.5))
+
+        for i in range(blockRow):
+            for j in range(blockColumn):
+                self.labelArray[i][j].setText('255')
+                self.labelArray[i][j].setFont(QFont("Arial", 10))
+                self.labelArray[i][j].setAlignment(Qt.AlignmentFlag.AlignCenter)
+                self.labelArray[i][j].setStyleSheet(
+                    f"background-color: rgb({colorData[i * blockColumn + j][0]}, {colorData[i * blockColumn + j][1]}, {colorData[i * blockColumn + j][2]});")
+                self.labelLayout.addWidget(self.labelArray[i][j], i, j)
 
         self.totalLayout.removeItem(self.labelLayout)
         self.totalLayout.addLayout(self.labelLayout, 0, 0)
@@ -261,18 +296,6 @@ class MainWindow(QMainWindow):
         self.errorMessage.warning(self, self.tr('Error'), message)
 
     def changeColor(self):
-        # if self.currentSerial:
-        #     # print(self.currentSerial.is_open)
-        #     if self.currentSerial.is_open:
-        #         currentData = self.currentSerial.readline()
-        #         if currentData:
-        #             currentArr = currentData.decode('utf-8').split()
-        #             for _ in range(numBlock):
-        #                 currentNum = float(currentArr[_ * 2 + 1])
-        #                 self.labels[_].setText(str(currentNum))
-        #                 data[_] = getColor(currentNum)
-        #                 self.labels[_].setStyleSheet(
-        #                     f"background-color: rgb({data[_][0]}, {data[_][1]}, {data[_][2]});")
         global firstRead, startReading, currentSerial, serialReadingThreadRunning
         if startReading:
             try:
@@ -280,26 +303,25 @@ class MainWindow(QMainWindow):
                     if currentSerial.is_open:
                         if not serialReadingThreadRunning:
                             self.serialReadingThread.start()
-                        # while firstRead:
-                        #     currentData = currentSerial.readline()
-                        #     if currentData == b'----------------------------------------------------------\n':
-                        #         firstRead = False
-                        # totalData = []
-                        # for _ in range(int(numBlock ** 0.5) + 1):
-                        #     currentData = currentSerial.readline()
-                        #     while currentData == b'\n':
-                        #         currentData = currentSerial.readline()
-                        #     if _ < int(numBlock ** 0.5):
-                        #         currentArr = currentData.decode('utf-8').split()
-                        #         for i in currentArr:
-                        #             totalData.append(float(i))
 
-                            for _ in range(numBlock):
-                                currentNum = totalData[_]
-                                self.labels[_].setText(str(currentNum))
-                                colorData[_] = getColor(currentNum)
-                                self.labels[_].setStyleSheet(
-                                    f"background-color: rgb({colorData[_][0]}, {colorData[_][1]}, {colorData[_][2]});")
+                            # for _ in range(numBlock):
+                            #     currentNum = totalData[_]
+                            #     self.labels[_].setText(str(currentNum))
+                            #     colorData[_] = getColor(currentNum)
+                            #     self.labels[_].setStyleSheet(
+                            #         f"background-color: rgb({colorData[_][0]}, {colorData[_][1]}, {colorData[_][2]});")
+
+                            for i in range(blockRow):
+                                for j in range(blockColumn):
+                                    currentNum = totalData[i * blockColumn + j]
+                                    self.labels[i * blockColumn + j].setText(str(currentNum))
+                                    colorData[i * blockColumn + j] = getColor(currentNum)
+                                    self.labelArray[i][j].setStyleSheet(
+                                        f"background-color: rgb({colorData[i * blockColumn + j][0]}, {colorData[i * blockColumn + j][1]}, {colorData[i * blockColumn + j][2]});")
+
+                            for i in range(blockRow):
+                                for j in range(blockColumn):
+                                    self.labelArray[i][j].setText(str(totalData[i * blockColumn + j]))
             except BaseException as e:
                 self.stopRunning()
                 self.refresh()
@@ -316,7 +338,11 @@ class MainWindow(QMainWindow):
         config.set('Data', 'maxData', str(maxDataNum))
         config.set('Data', 'minData', str(minDataNum))
         config.set('Data', 'timeinterval', str(timeInterval))
+        config.set('Data', 'separation_between_rows', separationBetweenRows)
+        config.set('Data', 'separation_between_numbers', separationBetweenNumbers)
         config.set('Display', 'numBlock', str(numBlock))
+        config.set('Display', 'blockRow', str(blockRow))
+        config.set('Display', 'blockColumn', str(blockColumn))
         config.set('Color', 'startColor', ' '.join([str(i) for i in startColor]))
         config.set('Color', 'endColor', ' '.join([str(i) for i in endColor]))
         config.set('Color', 'intervalColor', ' '.join([str(i) for i in intervalColor]))
@@ -338,26 +364,35 @@ class SerialReadingThread(QThread):
 
     def run(self):
         global firstRead, startReading, currentSerial, totalData, serialReadingThreadRunning, totalDataList, \
-            totalTimeList
+            totalTimeList, noInputSeparation, separationBetweenRows, separationBetweenNumbers
         try:
             serialReadingThreadRunning = True
+            noReadingError = True
             currentTime = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
-            while firstRead:
+            while firstRead and not noInputSeparation:
                 currentData = currentSerial.readline()
-                if currentData == b'----------------------------------------------------------\n':
+                if currentData[0] == ord(separationBetweenRows):
                     firstRead = False
             currentTotalData = []
-            for _ in range(int(numBlock ** 0.5) + 1):
+            if noInputSeparation:
+                separationBias = 0
+            else:
+                separationBias = 1
+
+            for _ in range(blockRow + separationBias):
                 currentData = currentSerial.readline()
-                while currentData == b'\n' or currentData == b'':
+                while currentData == b'\n' or currentData == b'\r\n':
                     currentData = currentSerial.readline()
-                if _ < int(numBlock ** 0.5):
-                    currentArr = currentData.decode('utf-8').split()
-                    for i in currentArr:
-                        currentTotalData.append(float(i))
-            totalData = currentTotalData
-            totalDataList.append(currentTotalData)
-            totalTimeList.append(currentTime)
+                currentArr = currentData.decode('utf-8').split(separationBetweenNumbers)
+                if len(currentArr) != blockColumn:
+                    noReadingError = False
+                    break
+                for i in currentArr:
+                    currentTotalData.append(float(i))
+            if noReadingError:
+                totalData = currentTotalData
+                totalDataList.append(currentTotalData)
+                totalTimeList.append(currentTime)
             serialReadingThreadRunning = False
         except BaseException as e:
             self.parent().stopRunning()
@@ -453,6 +488,12 @@ class SettingDialog(QDialog):
         self.timeIntervalLineEdit = QLineEdit(str(timeInterval))
         self.timeIntervalLineEdit.setValidator(QIntValidator())
 
+        self.separationBetweenRowsLabel = QLabel(self.tr('Separation between rows:'))
+        self.separationBetweenRowsLineEdit = QLineEdit(separationBetweenRows)
+
+        self.separationBetweenNumbersLabel = QLabel(self.tr('Separation between numbers:'))
+        self.separationBetweenNumbersLineEdit = QLineEdit(separationBetweenNumbers)
+
         self.dataFormLayout.addWidget(self.thresholdLabel, 0, 0, 1, 2)
         self.dataFormLayout.addWidget(self.maxNumLabel, 1, 0)
         self.dataFormLayout.addWidget(self.maxNumLineEdit, 1, 1)
@@ -460,16 +501,30 @@ class SettingDialog(QDialog):
         self.dataFormLayout.addWidget(self.minNumLineEdit, 2, 1)
         self.dataFormLayout.addWidget(self.timeIntervalLabel, 3, 0)
         self.dataFormLayout.addWidget(self.timeIntervalLineEdit, 3, 1)
+        self.dataFormLayout.addWidget(self.separationBetweenRowsLabel, 4, 0)
+        self.dataFormLayout.addWidget(self.separationBetweenRowsLineEdit, 4, 1)
+        self.dataFormLayout.addWidget(self.separationBetweenNumbersLabel, 5, 0)
+        self.dataFormLayout.addWidget(self.separationBetweenNumbersLineEdit, 5, 1)
         self.tabWidget.addTab(self.dataFrom, self.tr('Data'))
 
         self.displayForm = QWidget()
         self.displayFormLayout = QGridLayout(self.displayForm)
-        self.setNumberOfBlocksLabel = QLabel(self.tr('Number of blocks:'))
-        self.setNumberOfBlocksLineEdit = QLineEdit(str(numBlock))
-        self.setNumberOfBlocksLineEdit.setValidator(QIntValidator())
+        # self.setNumberOfBlocksLabel = QLabel(self.tr('Number of blocks:'))
+        # self.setNumberOfBlocksLineEdit = QLineEdit(str(numBlock))
+        # self.setNumberOfBlocksLineEdit.setValidator(QIntValidator())
+        self.setBlockRowLabel = QLabel(self.tr('Number of rows:'))
+        self.setBlockRowLineEdit = QLineEdit(str(blockRow))
+        self.setBlockRowLineEdit.setValidator(QIntValidator())
+        self.setBlockColumnLabel = QLabel(self.tr('Number of columns:'))
+        self.setBlockColumnLineEdit = QLineEdit(str(blockColumn))
+        self.setBlockColumnLineEdit.setValidator(QIntValidator())
 
-        self.displayFormLayout.addWidget(self.setNumberOfBlocksLabel, 0, 0)
-        self.displayFormLayout.addWidget(self.setNumberOfBlocksLineEdit, 0, 1)
+        self.displayFormLayout.addWidget(self.setBlockRowLabel, 0, 0)
+        self.displayFormLayout.addWidget(self.setBlockRowLineEdit, 0, 1)
+        self.displayFormLayout.addWidget(self.setBlockColumnLabel, 1, 0)
+        self.displayFormLayout.addWidget(self.setBlockColumnLineEdit, 1, 1)
+        # self.displayFormLayout.addWidget(self.setNumberOfBlocksLabel, 0, 0)
+        # self.displayFormLayout.addWidget(self.setNumberOfBlocksLineEdit, 0, 1)
         self.tabWidget.addTab(self.displayForm, self.tr('Display'))
 
         self.colorForm = QWidget()
@@ -556,14 +611,22 @@ class SettingDialog(QDialog):
 
     def saveValues(self):
         global maxDataNum, minDataNum, startColor, endColor, intervalColor, xAxisLength, numBlock, numBlockChanged, \
-            timeInterval, timeIntervalChanged, language
+            timeInterval, timeIntervalChanged, language, blockRow, blockColumn, separationBetweenRows,\
+            separationBetweenNumbers, previousBlockRow, previousBlockColumn
         maxDataNum = int(self.maxNumLineEdit.text())
         minDataNum = int(self.minNumLineEdit.text())
         xAxisLength = int(self.setXAxisLengthLineEdit.text())
         startColor = self.currentStartColor
         endColor = self.currentEndColor
         intervalColor = self.currentIntervalColor
-        numBlock = int(self.setNumberOfBlocksLineEdit.text())
+        # numBlock = int(self.setNumberOfBlocksLineEdit.text())
+        previousBlockRow = blockRow
+        previousBlockColumn = blockColumn
+        blockRow = int(self.setBlockRowLineEdit.text())
+        blockColumn = int(self.setBlockColumnLineEdit.text())
+        numBlock = blockRow * blockColumn
+        separationBetweenRows = self.separationBetweenRowsLineEdit.text()
+        separationBetweenNumbers = self.separationBetweenNumbersLineEdit.text()
         numBlockChanged = True
         timeInterval = int(self.timeIntervalLineEdit.text())
         timeIntervalChanged = True
