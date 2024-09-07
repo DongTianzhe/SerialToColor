@@ -21,12 +21,8 @@ blockRow = int(config.get('Display', 'blockRow'))
 blockColumn = int(config.get('Display', 'blockColumn'))
 previousBlockRow = blockRow
 previousBlockColumn = blockColumn
-if blockRow == 1:
-    noInputSeparation = True
-else:
-    noInputSeparation = False
-separationBetweenRows = config.get('Data', 'separation_between_rows')
-separationBetweenNumbers = config.get('Data', 'separation_between_numbers')
+separationBetweenRows = int(config.get('Data', 'separation_between_rows'))
+separationBetweenNumbers = int(config.get('Data', 'separation_between_numbers'))
 numBlockChanged = False
 maxDataNum = int(config.get('Data', 'maxData'))
 minDataNum = int(config.get('Data', 'minData'))
@@ -49,6 +45,7 @@ languageList = [['English', 'en'], ['简体中文', 'zh_CN']]
 startColor = list(map(int, config.get('Color', 'startColor').split()))
 endColor = list(map(int, config.get('Color', 'endColor').split()))
 intervalColor = list(map(int, config.get('Color', 'intervalColor').split()))
+activeLineChart = [False for _ in range(numBlock)]
 
 totalDataList = []
 totalTimeList = []
@@ -110,7 +107,7 @@ class MainWindow(QMainWindow):
         # Widgets
         self.labels = [ColorLabel(_) for _ in range(numBlock)]
 
-        self.labelArray = [[ColorLabel(i * blockColumn + j) for i in range(blockColumn)] for j in range(blockRow)]
+        self.labelArray = [[ColorLabel(j * blockColumn + i) for i in range(blockColumn)] for j in range(blockRow)]
 
         self.errorMessage = QMessageBox()
 
@@ -267,7 +264,7 @@ class MainWindow(QMainWindow):
 
         # self.labels = [ColorLabel(_) for _ in range(numBlock)]
 
-        self.labelArray = [[ColorLabel(i * blockColumn + j) for j in range(blockColumn)] for i in range(blockRow)]
+        self.labelArray = [[ColorLabel(j * blockColumn + i) for i in range(blockColumn)] for j in range(blockRow)]
         colorData = [[255, 255, 255] for _ in range(numBlock)]
         totalData = [(maxDataNum + minDataNum) // 2 for _ in range(numBlock)]
         self.labelLayout = QGridLayout()
@@ -338,8 +335,8 @@ class MainWindow(QMainWindow):
         config.set('Data', 'maxData', str(maxDataNum))
         config.set('Data', 'minData', str(minDataNum))
         config.set('Data', 'timeinterval', str(timeInterval))
-        config.set('Data', 'separation_between_rows', separationBetweenRows)
-        config.set('Data', 'separation_between_numbers', separationBetweenNumbers)
+        config.set('Data', 'separation_between_rows', str(separationBetweenRows))
+        config.set('Data', 'separation_between_numbers', str(separationBetweenNumbers))
         config.set('Display', 'numBlock', str(numBlock))
         config.set('Display', 'blockRow', str(blockRow))
         config.set('Display', 'blockColumn', str(blockColumn))
@@ -364,35 +361,37 @@ class SerialReadingThread(QThread):
 
     def run(self):
         global firstRead, startReading, currentSerial, totalData, serialReadingThreadRunning, totalDataList, \
-            totalTimeList, noInputSeparation, separationBetweenRows, separationBetweenNumbers
+            totalTimeList, separationBetweenRows, separationBetweenNumbers, blockRow
         try:
             serialReadingThreadRunning = True
-            noReadingError = True
             currentTime = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
-            while firstRead and not noInputSeparation:
+            while firstRead:
                 currentData = currentSerial.readline()
-                if currentData[0] == ord(separationBetweenRows):
+                if blockRow == 1:
+                    firstRead = False
+                if currentData[0] == separationBetweenRows:
                     firstRead = False
             currentTotalData = []
-            if noInputSeparation:
-                separationBias = 0
+            if blockRow == 1:
+                separationBias = False
             else:
-                separationBias = 1
+                separationBias = True
 
-            for _ in range(blockRow + separationBias):
+            for _ in range(blockRow):
                 currentData = currentSerial.readline()
-                while currentData == b'\n' or currentData == b'\r\n':
+                while currentData == b'\n' or currentData == b'\r\n' or currentData == b' ' or currentData == b'':
                     currentData = currentSerial.readline()
-                currentArr = currentData.decode('utf-8').split(separationBetweenNumbers)
-                if len(currentArr) != blockColumn:
-                    noReadingError = False
-                    break
+                currentArr = currentData.decode('utf-8').split(chr(separationBetweenNumbers))
                 for i in currentArr:
-                    currentTotalData.append(float(i))
-            if noReadingError:
-                totalData = currentTotalData
-                totalDataList.append(currentTotalData)
-                totalTimeList.append(currentTime)
+                    if i != ' ' and i != '':
+                        currentTotalData.append(float(i))
+            if separationBias:
+                temp = currentSerial.readline()
+                while temp == b'\n' or temp == b'\r\n' or temp == b' ' or temp == b'':
+                    temp = currentSerial.readline()
+            totalData = currentTotalData
+            totalDataList.append(currentTotalData)
+            totalTimeList.append(currentTime)
             serialReadingThreadRunning = False
         except BaseException as e:
             self.parent().stopRunning()
@@ -437,14 +436,17 @@ class ColorLabel(QLabel):
         self.chartView.setRenderHint(QPainter.RenderHint.Antialiasing)
 
     def mousePressEvent(self, event):
+        global activeLineChart
         if event.button() == Qt.MouseButton.LeftButton:
             # print('left', self.index)
+            activeLineChart[self.index] = True
             self.lineChart.reset()
             self.chartView.show()
 
     def setText(self, arg__1):
         super().setText(arg__1)
         if self.lineChart.isActive():
+            # print('active', self.index)
             self.lineChart.dataUpdate(arg__1)
 
 
@@ -489,10 +491,10 @@ class SettingDialog(QDialog):
         self.timeIntervalLineEdit.setValidator(QIntValidator())
 
         self.separationBetweenRowsLabel = QLabel(self.tr('Separation between rows:'))
-        self.separationBetweenRowsLineEdit = QLineEdit(separationBetweenRows)
+        self.separationBetweenRowsLineEdit = QLineEdit(chr(separationBetweenRows))
 
         self.separationBetweenNumbersLabel = QLabel(self.tr('Separation between numbers:'))
-        self.separationBetweenNumbersLineEdit = QLineEdit(separationBetweenNumbers)
+        self.separationBetweenNumbersLineEdit = QLineEdit(chr(separationBetweenNumbers))
 
         self.dataFormLayout.addWidget(self.thresholdLabel, 0, 0, 1, 2)
         self.dataFormLayout.addWidget(self.maxNumLabel, 1, 0)
@@ -612,7 +614,7 @@ class SettingDialog(QDialog):
     def saveValues(self):
         global maxDataNum, minDataNum, startColor, endColor, intervalColor, xAxisLength, numBlock, numBlockChanged, \
             timeInterval, timeIntervalChanged, language, blockRow, blockColumn, separationBetweenRows,\
-            separationBetweenNumbers, previousBlockRow, previousBlockColumn
+            separationBetweenNumbers, previousBlockRow, previousBlockColumn, activeLineChart, totalData
         maxDataNum = int(self.maxNumLineEdit.text())
         minDataNum = int(self.minNumLineEdit.text())
         xAxisLength = int(self.setXAxisLengthLineEdit.text())
@@ -625,8 +627,10 @@ class SettingDialog(QDialog):
         blockRow = int(self.setBlockRowLineEdit.text())
         blockColumn = int(self.setBlockColumnLineEdit.text())
         numBlock = blockRow * blockColumn
-        separationBetweenRows = self.separationBetweenRowsLineEdit.text()
-        separationBetweenNumbers = self.separationBetweenNumbersLineEdit.text()
+        activeLineChart = [False for _ in range(numBlock)]
+        totalData = [(maxDataNum + minDataNum) // 2 for _ in range(numBlock)]
+        separationBetweenRows = ord(self.separationBetweenRowsLineEdit.text())
+        separationBetweenNumbers = ord(self.separationBetweenNumbersLineEdit.text())
         numBlockChanged = True
         timeInterval = int(self.timeIntervalLineEdit.text())
         timeIntervalChanged = True
@@ -675,6 +679,9 @@ class LineChart(QChart):
         xCount = 0
         currentRow = str(index // int(numBlock ** 0.5))
         currentColumn = str(index % int(numBlock ** 0.5))
+
+        self.index = index
+
         self.totalData = []
         self.currentMinAxisX = 0
 
@@ -711,8 +718,8 @@ class LineChart(QChart):
         self.series.append(float(xCount), float(num))
         minY = min(self.totalData)
         maxY = max(self.totalData)
-        self.axisY.setMin(minY)
-        self.axisY.setMax(maxY)
+        self.axisY.setMin(minY * 0.9)
+        self.axisY.setMax(maxY * 1.1)
         self.axisX.setMax(xCount)
         xCount += 1
 
@@ -724,3 +731,12 @@ class LineChart(QChart):
         self.axisX.setMax(1)
         self.axisY.setMin(0)
         self.axisY.setMax(0)
+
+    def closeEvent(self, event):
+        activeLineChart[self.index] = False
+        print(f'Line chart {self.index} closed.')
+        event.accept()
+
+    def hideEvent(self, event):
+        print(f'Line chart {self.index} hidden.')
+        event.accept()

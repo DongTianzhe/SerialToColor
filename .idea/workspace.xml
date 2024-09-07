@@ -4,7 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="d21e7d55-f741-4de2-83bc-0cf64d24eb31" name="更改" comment="Data will be stored to data/totalData.xlsx after stop reading.">
+    <list default="true" id="d21e7d55-f741-4de2-83bc-0cf64d24eb31" name="更改" comment="Adjustable block number by row and column. (Unstable)">
       <change afterPath="$PROJECT_DIR$/dist/SerialToColor 2024-8-15.zip" afterDir="false" />
       <change afterPath="$PROJECT_DIR$/dist/SerialToColor 2024-8-17.zip" afterDir="false" />
       <change afterPath="$PROJECT_DIR$/dist/SerialToColor 2024-8-25.zip" afterDir="false" />
@@ -144,13 +144,22 @@
       <option name="project" value="LOCAL" />
       <updated>1724558023515</updated>
     </task>
-    <option name="localTasksCounter" value="4" />
+    <task id="LOCAL-00004" summary="Adjustable block number by row and column. (Unstable)">
+      <option name="closed" value="true" />
+      <created>1725380236038</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1725380236038</updated>
+    </task>
+    <option name="localTasksCounter" value="5" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="Initial commit" />
     <MESSAGE value="Multithreading added" />
     <MESSAGE value="Data will be stored to data/totalData.xlsx after stop reading." />
-    <option name="LAST_COMMIT_MESSAGE" value="Data will be stored to data/totalData.xlsx after stop reading." />
+    <MESSAGE value="Adjustable block number by row and column. (Unstable)" />
+    <option name="LAST_COMMIT_MESSAGE" value="Adjustable block number by row and column. (Unstable)" />
   </component>
 </project>
