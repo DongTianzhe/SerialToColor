@@ -91,6 +91,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         # Variables
         self.currentSerialIndex = -1
+        self.dataCount = 0
 
         # Window
         self.setWindowTitle(self.tr('Show color'))
@@ -105,7 +106,7 @@ class MainWindow(QMainWindow):
         self.timer.setInterval(timeInterval)
 
         # Widgets
-        self.labels = [ColorLabel(_) for _ in range(numBlock)]
+        # self.labels = [ColorLabel(_) for _ in range(numBlock)]
 
         self.labelArray = [[ColorLabel(j * blockColumn + i) for i in range(blockColumn)] for j in range(blockRow)]
 
@@ -229,6 +230,7 @@ class MainWindow(QMainWindow):
     def startRunning(self):
         global startReading, currentSerial, startTime, totalDataList, totalTimeList
         startReading = True
+        self.dataCount = 0
         startTime = datetime.datetime.now().strftime('%Y-%m-%d %H.%M.%S')
         totalDataList.clear()
         totalTimeList.clear()
@@ -244,6 +246,7 @@ class MainWindow(QMainWindow):
         startReading = False
         serialReadingThreadRunning = False
         self.serialReadingThread.wait()
+        self.excelWritingThread.wait()
         self.excelWritingThread.start()
         self.startButtonAction.setIcon(QIcon('img/start.svg'))
         self.startButtonAction.setStatusTip(self.tr('Start reading'))
@@ -311,14 +314,15 @@ class MainWindow(QMainWindow):
                             for i in range(blockRow):
                                 for j in range(blockColumn):
                                     currentNum = totalData[i * blockColumn + j]
-                                    self.labels[i * blockColumn + j].setText(str(currentNum))
+                                    self.labelArray[i][j].setText(str(totalData[i * blockColumn + j]))
                                     colorData[i * blockColumn + j] = getColor(currentNum)
                                     self.labelArray[i][j].setStyleSheet(
                                         f"background-color: rgb({colorData[i * blockColumn + j][0]}, {colorData[i * blockColumn + j][1]}, {colorData[i * blockColumn + j][2]});")
 
-                            for i in range(blockRow):
-                                for j in range(blockColumn):
-                                    self.labelArray[i][j].setText(str(totalData[i * blockColumn + j]))
+                            self.dataCount += 1
+
+                            if self.dataCount % 100 == 0:
+                                self.excelWritingThread.start()
             except BaseException as e:
                 self.stopRunning()
                 self.refresh()
@@ -404,26 +408,35 @@ class ExcelWritingThread(QThread):
         super().__init__(parent)
 
     def run(self):
+        global totalTimeList, totalDataList, startTime
+        currentTotalDataList = totalDataList[:]
+        currentTotalTimeList = totalTimeList[:]
+        totalDataList.clear()
+        totalTimeList.clear()
+
         if 'data' not in os.listdir():
             os.mkdir('data')
 
-        if 'totalData.xlsx' not in os.listdir('data'):
+        if f'totalData {startTime}.xlsx' not in os.listdir('data'):
             with xw.App(visible=False) as app:
                 book = app.books.add()
-                book.save('data/totalData.xlsx')
+                sheet = book.sheets.add()
+                sheet.name = startTime
+                sheet.range('a:a').api.NumberFormat = '@'
+                sheet.range('A1').value = 'time'
+                sheet.range('B1').value = [f'block {_}' for _ in range(numBlock)]
+                book.save(f'data/totalData {startTime}.xlsx')
 
         with xw.App(visible=False) as app:
-            book = app.books.open('data/totalData.xlsx')
-            sheet = book.sheets.add()
-            sheet.name = startTime
-            sheet.range('a:a').api.NumberFormat = '@'
-            sheet.range('A1').value = 'time'
-            sheet.range('B1').value = [f'block {_}' for _ in range(numBlock)]
-            sheet.range('A2').options(transpose=True).value = totalTimeList
-            sheet.range('B2').options(expand='table').value = totalDataList
+            book = app.books.open(f'data/totalData {startTime}.xlsx')
+            sheet = book.sheets[startTime]
+            newRow = sheet.used_range.last_cell.row + 1
+            sheet.range(f'A{newRow}').options(transpose=True).value = currentTotalTimeList
+            sheet.range(f'B{newRow}').options(expand='table').value = currentTotalDataList
             book.save()
             book.close()
-        print('ExcelWritingThread finish')
+
+        # print('ExcelWritingThread finish')
 
 
 
@@ -431,9 +444,7 @@ class ColorLabel(QLabel):
     def __init__(self, index):
         super().__init__()
         self.index = index
-        self.lineChart = LineChart(self.index)
-        self.chartView = QChartView(self.lineChart)
-        self.chartView.setRenderHint(QPainter.RenderHint.Antialiasing)
+        self.lineChart = LineChart(self.index, self)
 
     def mousePressEvent(self, event):
         global activeLineChart
@@ -441,12 +452,11 @@ class ColorLabel(QLabel):
             # print('left', self.index)
             activeLineChart[self.index] = True
             self.lineChart.reset()
-            self.chartView.show()
+            self.lineChart.show()
 
     def setText(self, arg__1):
         super().setText(arg__1)
-        if self.lineChart.isActive():
-            # print('active', self.index)
+        if activeLineChart[self.index]:
             self.lineChart.dataUpdate(arg__1)
 
 
@@ -670,28 +680,34 @@ class SettingDialog(QDialog):
                 f"rgb({self.currentIntervalColor[0]}, {self.currentIntervalColor[1]}, {self.currentIntervalColor[2]});")
 
 
-class LineChart(QChart):
-    def __init__(self, index):
-        super().__init__()
+class LineChart(QMainWindow):
+    def __init__(self, index, parent=None):
+        super().__init__(parent)
 
         global xCount
 
         xCount = 0
-        currentRow = str(index // int(numBlock ** 0.5))
-        currentColumn = str(index % int(numBlock ** 0.5))
+        # currentRow = str(index // int(numBlock))
+        # currentColumn = str(index % int(numBlock))
 
         self.index = index
 
         self.totalData = []
         self.currentMinAxisX = 0
+        self.startWriting = True
+        self.setWindowTitle(self.tr('Line chart'))
+
+        self.lineChart = QChart()
 
         self.resize(QSize(600, 400))
-        self.legend().hide()
-        self.setTitle(self.tr(
-            f'Label row {currentRow} column {currentColumn}'))
+        self.lineChart.legend().hide()
+        # self.lineChart.setTitle(self.tr(
+        #     f'Label row {currentRow} column {currentColumn}'))
+        self.lineChart.setTitle(self.tr(f'Label {self.index}'))
 
         self.series = QLineSeries()
-        self.addSeries(self.series)
+        self.lineChart.addSeries(self.series)
+        # self.lineChart.setAnimationOptions(QChart.AnimationOption.AllAnimations)
 
         self.axisX = QValueAxis()
         self.axisX.setMin(self.currentMinAxisX)
@@ -701,11 +717,41 @@ class LineChart(QChart):
         self.axisY.setMin(0)
         self.axisY.setMax(0)
 
-        self.addAxis(self.axisX, Qt.AlignmentFlag.AlignBottom)
-        self.addAxis(self.axisY, Qt.AlignmentFlag.AlignLeft)
+        self.lineChart.addAxis(self.axisX, Qt.AlignmentFlag.AlignBottom)
+        self.lineChart.addAxis(self.axisY, Qt.AlignmentFlag.AlignLeft)
 
         self.series.attachAxis(self.axisX)
         self.series.attachAxis(self.axisY)
+
+        # Toolbar
+        self.toolbar = QToolBar()
+        self.toolbar.setIconSize(QSize(24, 24))
+        self.addToolBar(self.toolbar)
+        self.setStatusBar(QStatusBar(self))
+
+        self.startButtonAction = QAction(QIcon('img/stop.svg'), self.tr('Stop'), self)
+        self.startButtonAction.triggered.connect(self.startButtonActionTriggered)
+        self.toolbar.addAction(self.startButtonAction)
+
+        # Layout
+        self.centralWidget = QWidget()
+        self.totalLayout = QGridLayout()
+        self.chartView = QChartView(self.lineChart)
+        self.chartView.setRenderHint(QPainter.RenderHint.Antialiasing)
+        self.totalLayout.addWidget(self.chartView, 0, 0)
+        self.centralWidget.setLayout(self.totalLayout)
+        self.setCentralWidget(self.centralWidget)
+
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key.Key_M:
+            self.lineChart.zoomIn()
+        if event.key() == Qt.Key.Key_N:
+            self.lineChart.zoomOut()
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.MouseButton.RightButton:
+            self.lineChart.zoomReset()
+
 
     def dataUpdate(self, num):
         global xAxisLength, xCount
@@ -718,8 +764,8 @@ class LineChart(QChart):
         self.series.append(float(xCount), float(num))
         minY = min(self.totalData)
         maxY = max(self.totalData)
-        self.axisY.setMin(minY * 0.9)
-        self.axisY.setMax(maxY * 1.1)
+        self.axisY.setMin(minY * 0.95)
+        self.axisY.setMax(maxY * 1.05)
         self.axisX.setMax(xCount)
         xCount += 1
 
@@ -732,11 +778,17 @@ class LineChart(QChart):
         self.axisY.setMin(0)
         self.axisY.setMax(0)
 
+    def startButtonActionTriggered(self):
+        if activeLineChart[self.index]:
+            activeLineChart[self.index] = False
+            self.startButtonAction.setIcon(QIcon('img/start.svg'))
+            self.startButtonAction.setText(self.tr('Start'))
+        else:
+            activeLineChart[self.index] = True
+            self.startButtonAction.setIcon(QIcon('img/stop.svg'))
+            self.startButtonAction.setText(self.tr('Stop'))
+
     def closeEvent(self, event):
         activeLineChart[self.index] = False
-        print(f'Line chart {self.index} closed.')
-        event.accept()
-
-    def hideEvent(self, event):
-        print(f'Line chart {self.index} hidden.')
+        # print(f'Line chart {self.index} closed.')
         event.accept()

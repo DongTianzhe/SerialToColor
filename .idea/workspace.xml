@@ -4,13 +4,12 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="d21e7d55-f741-4de2-83bc-0cf64d24eb31" name="更改" comment="Adjustable block number by row and column. (Unstable)">
+    <list default="true" id="d21e7d55-f741-4de2-83bc-0cf64d24eb31" name="更改" comment="Bug fixing">
       <change afterPath="$PROJECT_DIR$/dist/SerialToColor 2024-8-15.zip" afterDir="false" />
       <change afterPath="$PROJECT_DIR$/dist/SerialToColor 2024-8-17.zip" afterDir="false" />
       <change afterPath="$PROJECT_DIR$/dist/SerialToColor 2024-8-25.zip" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/UI.py" beforeDir="false" afterPath="$PROJECT_DIR$/UI.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/config.ini" beforeDir="false" afterPath="$PROJECT_DIR$/config.ini" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/dist/SerialToColor 20240815.zip" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/dist/SerialToColor 20240817.zip" beforeDir="false" />
     </list>
@@ -152,14 +151,34 @@
       <option name="project" value="LOCAL" />
       <updated>1725380236038</updated>
     </task>
-    <option name="localTasksCounter" value="5" />
+    <task id="LOCAL-00005" summary="Bug fixing">
+      <option name="closed" value="true" />
+      <created>1725681945764</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1725681945764</updated>
+    </task>
+    <option name="localTasksCounter" value="6" />
     <servers />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="Initial commit" />
     <MESSAGE value="Multithreading added" />
     <MESSAGE value="Data will be stored to data/totalData.xlsx after stop reading." />
     <MESSAGE value="Adjustable block number by row and column. (Unstable)" />
-    <option name="LAST_COMMIT_MESSAGE" value="Adjustable block number by row and column. (Unstable)" />
+    <MESSAGE value="Bug fixing" />
+    <option name="LAST_COMMIT_MESSAGE" value="Bug fixing" />
   </component>
 </project>
